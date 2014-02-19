@@ -1,0 +1,110 @@
+#!/bin/bash
+# gerate_dumps
+#   Generate a dump file for each database in database cluster
+#
+# Developped by:
+#     Sebastian Webber - sebastian.webber@lm2.com.br
+#
+# Last update:
+#     2014-0-09
+#
+## DEFAULT SETTINGS ###########################################
+
+## STOP EDITING HERE ###########################################
+
+PROGRAM_NAME=$(basename $0 | cut -d . -f 1)
+
+_pgsql_user=''
+_pgsql_host=''
+_pgsql_port=''
+
+_remove_olds='F'
+
+function show_help() {
+    echo "Generate a dump file for each database in a database cluster."
+    echo 
+    echo Usage:
+    echo    "${PROGRAM_NAME} --dump-destination=PATH [OPTIONS] [PGDUMP_CONNECTION_OPTIONS]"
+    echo "Usage:"
+    echo "   --dump-destination=PATH            Backup files destination"
+    echo "   --remove-olds                      Cleanup directory before generate dump files"
+    echo
+    echo "   -h, --help                         Show this information then exit"
+    echo
+    echo "Please, send bug-reports on github repo."
+    echo
+    exit 1
+}
+
+function remove_olds () {
+  rm -rf ${_backup_destination}/*dmpc
+}
+function create_dumps() {
+    remove_olds
+
+    # set de file_mask
+    file_mask=$(date +%d-%m-%Y_%Hh%Mmin)
+
+    echo 'Generating dynamic database list...'
+
+    pgsql_connection_args=''
+
+    if [ "${_pgsql_host}X" != "X" ]; then
+        pgsql_connection_args="${pgsql_connection_args} -h ${_pgsql_host}"
+    fi
+    if [ "${_pgsql_user}X" != "X" ]; then
+        pgsql_connection_args="${pgsql_connection_args} -U ${_pgsql_user}"
+    fi
+    if [ "${_pgsql_port}X" != "X" ]; then
+        pgsql_connection_args="${pgsql_connection_args} -p ${_pgsql_port}"
+    fi
+
+    exclude_databases="'template0', 'template1'"
+    db_query="SELECT datname FROM pg_database WHERE datname NOT IN (${exclude_databases});"
+    database_list=$(psql ${pgsql_connection_args} -c "${db_query}" -t)
+
+    echo 'Generating dump files...'
+
+    for db_name in ${database_list[@]}; do
+        dump_file="${_backup_destination}/${db_name}-${file_mask}.dmpc"
+        echo " >> Processing ${db_name}" 
+		pg_dump ${pgsql_connection_args} -Fc -f ${dump_file} ${db_name}
+    done
+
+    echo "Done."
+}
+
+if [ $# -ne 0 ]; then
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --*)
+                option=$(echo "${1}" | cut -d '=' -f 1 )
+                value=$(echo "${1}" | cut -d '=' -f 2)
+                case "${option}" in
+                    --dump-destination) _backup_destination="${value}" ;;
+                    --remove-olds) _remove_olds="T" ;;
+                    --host) _pgsql_host="${value}" ;;
+                    --port) _pgsql_port="${value}" ;;
+                    --username) _pgsql_user="${value}" ;;
+                    *) p=$(show_help) ; out=$? ; [[ ${out} -ne 0 ]] && echo "${p}" && exit ${out} ;;
+                esac ;;
+            -h) _pgsql_host="${2}" ; shift ;;
+            -p) _pgsql_port="${2}" ; shift ;;
+            -U) _pgsql_user="${2}" ; shift ;;
+            *) p=$(show_help) ; out=$? ; [[ ${out} -ne 0 ]] && echo "${p}" && exit ${out} ;;
+        esac
+        shift
+    done
+
+    if [ "${_remove_olds}" = "T" ]; then
+        remove_olds
+    fi
+
+    if [ "${_backup_destination}X" = "X" ]; then
+        show_help
+    fi
+
+    create_dumps
+else
+    show_help
+fi
