@@ -1,6 +1,7 @@
 -- file: next-pgagent-jobs.sql
 -- descrition: Lists next PGAgent jobs.
--- version: >= 9.0
+-- version: >= 8.4
+-- depends: PGAdmin pack (for pgagent stuff)
 
 SELECT
   pga_job.jobname as job_name,

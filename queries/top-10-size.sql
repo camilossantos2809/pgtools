@@ -1,6 +1,7 @@
 -- file: top-10-size.sql
 -- descrition: lists top 10 objects size in database.
 -- version: >= 9.0
+-- depends: NONE
 
 WITH table_stats AS (
   SELECT
