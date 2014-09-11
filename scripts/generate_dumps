@@ -34,7 +34,7 @@ function show_help() {
     echo
     echo "   --help                             Show this information then exit"
     echo
-    echo "Please, send bug-reports on github repo."
+    echo "Please, send bug-reports to the github repo creating a new issue."
     echo
     exit 1
 }
