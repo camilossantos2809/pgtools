@@ -8,6 +8,9 @@
 # Last update:
 #     2014-0-09
 #
+# TODO:
+#   - use explicit encoding for each database
+#
 ## DEFAULT SETTINGS ###########################################
 
 ## STOP EDITING HERE ###########################################
@@ -29,7 +32,7 @@ function show_help() {
     echo "   --dump-destination=PATH            Backup files destination"
     echo "   --remove-olds                      Cleanup directory before generate dump files"
     echo
-    echo "   -h, --help                         Show this information then exit"
+    echo "   --help                             Show this information then exit"
     echo
     echo "Please, send bug-reports on github repo."
     echo
@@ -37,7 +40,9 @@ function show_help() {
 }
 
 function remove_olds () {
-  rm -rf ${_backup_destination}/*dmpc
+  if [ ${_remove_olds} != 'F' ]; then
+    rm -rf ${_backup_destination}/*dmpc
+  fi
 }
 function create_dumps() {
     remove_olds
