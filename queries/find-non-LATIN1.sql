@@ -1,4 +1,4 @@
--- file: find-non-LATIN1.sql
+-- file: find-non-UTF8.sql
 -- descrition: Functions to find and replace NON LATIN1 chars in utf-8 database (REQUIRES review and testing)
 -- version: >= 8.4
 -- depends: NONE
