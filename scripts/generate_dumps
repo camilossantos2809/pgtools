@@ -3,17 +3,10 @@
 #   Generate a dump file for each database in database cluster
 #
 # Developped by:
-#     Sebastian Webber - sebastian.webber@lm2.com.br
+#     Sebastian Webber - swebber@outlook.com
 #
 # Last update:
-#     2014-0-09
-#
-# TODO:
-#   - use explicit encoding for each database
-#
-## DEFAULT SETTINGS ###########################################
-
-## STOP EDITING HERE ###########################################
+#     2014-08-11
 
 PROGRAM_NAME=$(basename $0 | cut -d . -f 1)
 
