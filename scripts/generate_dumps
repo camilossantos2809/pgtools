@@ -23,13 +23,18 @@ _pgsql_port=''
 
 _remove_olds='F'
 
+_custom_pgdump_options='-Fc'
+pgdump_options_list=$(pg_dump --help | egrep '\-\-[a-z]')
+
 function show_help() {
     echo "Generate a dump file for each database in a database cluster."
     echo 
     echo Usage:
-    echo    "${PROGRAM_NAME} --dump-destination=PATH [OPTIONS] [PGDUMP_CONNECTION_OPTIONS]"
+    echo    "${PROGRAM_NAME} --dump-destination=PATH [OPTIONS] [PGDUMP_OPTIONS]"
     echo "Usage:"
     echo "   --dump-destination=PATH            Backup files destination"
+    echo "   --before-script=FILE               Script do run BEFORE backup starts"
+    echo "   --after-script=FILE                Script do run AFTER backup starts"
     echo "   --remove-olds                      Cleanup directory before generate dump files"
     echo
     echo "   --help                             Show this information then exit"
@@ -73,10 +78,22 @@ function create_dumps() {
     for db_name in ${database_list[@]}; do
         dump_file="${_backup_destination}/${db_name}-${file_mask}.dmpc"
         echo " >> Processing ${db_name}" 
-		pg_dump ${pgsql_connection_args} -Fc -f ${dump_file} ${db_name}
+		pg_dump ${pgsql_connection_args} ${_custom_pgdump_options} -f ${dump_file} ${db_name}
     done
 
     echo "Done."
+}
+
+## check parameter inputed in cmd
+# returns:
+# 0: not found
+# 1: found 
+function check_pgdump_opts() {
+    echo $(echo "${pgdump_options_list}" | grep -- "${1}" | wc -l)
+}
+
+function run_script() {
+    eval "$1"
 }
 
 if [ $# -ne 0 ]; then
@@ -91,15 +108,41 @@ if [ $# -ne 0 ]; then
                     --host) _pgsql_host="${value}" ;;
                     --port) _pgsql_port="${value}" ;;
                     --username) _pgsql_user="${value}" ;;
-                    *) p=$(show_help) ; out=$? ; [[ ${out} -ne 0 ]] && echo "${p}" && exit ${out} ;;
+                    --before-script) _before_script="${value}" ;;
+                    --after-script) _after_script="${value}" ;;
+                    *) 
+                        if [ $(check_pgdump_opts "${option}") -eq 0  ]; then
+                            show_help && exit 1  
+                        else
+                            _custom_pgdump_options="${option}=${value} ${_custom_pgdump_options}"
+                        fi
+                     ;;
                 esac ;;
             -h) _pgsql_host="${2}" ; shift ;;
             -p) _pgsql_port="${2}" ; shift ;;
             -U) _pgsql_user="${2}" ; shift ;;
-            *) p=$(show_help) ; out=$? ; [[ ${out} -ne 0 ]] && echo "${p}" && exit ${out} ;;
+            *) 
+                if [ $(check_pgdump_opts "${1}") -eq 0  ]; then
+                    show_help && exit 1
+                else
+                    _custom_pgdump_options="${1} ${2} ${_custom_pgdump_options}"
+                    shift
+                fi
+             ;;
         esac
         shift
     done
+
+
+    if [ "${_before_script}X" != "X" ]; then
+        echo "Running external script: ${_before_script}"
+        p=$(run_script "${_before_script}")
+        out=$?
+        if [ ${out} -ne 0 ]; then
+            echo  "Error running BEFORE script"
+            exit ${out} 
+        fi
+    fi
 
     if [ "${_remove_olds}" = "T" ]; then
         remove_olds
@@ -110,6 +153,17 @@ if [ $# -ne 0 ]; then
     fi
 
     create_dumps
+
+
+    if [ "${_after_script}X" != "X" ]; then
+        echo "Running external script: ${_after_script}"
+        p=$(run_script "${_after_script}")
+        out=$?
+        if [ ${out} -ne 0 ]; then
+            echo  "Error running AFTER script"
+            exit ${out} 
+        fi
+    fi
 else
     show_help
 fi
