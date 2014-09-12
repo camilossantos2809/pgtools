@@ -17,7 +17,7 @@ _pgsql_port=''
 _remove_olds='F'
 
 _custom_pgdump_options='-Fc'
-pgdump_options_list=$(pg_dump --help | egrep '\-\-[a-z]')
+pgdump_options_list=$(pg_dump --help | egrep -- '--[a-z]')
 
 function show_help() {
     echo "Generate a dump file for each database in a database cluster."
@@ -38,6 +38,7 @@ function show_help() {
 }
 
 function remove_olds () {
+  echo "Removing olg backup files"
   if [ ${_remove_olds} != 'F' ]; then
     rm -rf ${_backup_destination}/*dmpc
   fi
@@ -129,7 +130,7 @@ if [ $# -ne 0 ]; then
 
     if [ "${_before_script}X" != "X" ]; then
         echo "Running external script: ${_before_script}"
-        p=$(run_script "${_before_script}")
+        run_script "${_before_script}"
         out=$?
         if [ ${out} -ne 0 ]; then
             echo  "Error running BEFORE script"
@@ -150,7 +151,7 @@ if [ $# -ne 0 ]; then
 
     if [ "${_after_script}X" != "X" ]; then
         echo "Running external script: ${_after_script}"
-        p=$(run_script "${_after_script}")
+        run_script "${_after_script}"
         out=$?
         if [ ${out} -ne 0 ]; then
             echo  "Error running AFTER script"
