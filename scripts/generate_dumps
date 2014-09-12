@@ -38,13 +38,12 @@ function show_help() {
 }
 
 function remove_olds () {
-  echo "Removing olg backup files"
+  echo "Removing old backup files"
   if [ ${_remove_olds} != 'F' ]; then
     rm -rf ${_backup_destination}/*dmpc
   fi
 }
 function create_dumps() {
-    remove_olds
 
     # set de file_mask
     file_mask=$(date +%d-%m-%Y_%Hh%Mmin)
