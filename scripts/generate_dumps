@@ -6,9 +6,11 @@
 #     Sebastian Webber - swebber@outlook.com
 #
 # Last update:
-#     2014-08-11
+#     2015-03-20
 
 PROGRAM_NAME=$(basename $0 | cut -d . -f 1)
+PGBIN='/usr/bin'
+LOGFILE='/var/log/gerate_dumps.log'
 
 _pgsql_user=''
 _pgsql_host=''
@@ -17,11 +19,26 @@ _pgsql_port=''
 _remove_olds='F'
 
 _custom_pgdump_options='-Fc'
-pgdump_options_list=$(pg_dump --help | egrep -- '--[a-z]')
+pgdump_options_list=$(${PGBIN}/pg_dump --help | egrep -- '--[a-z]')
+
+format ()
+{
+    gawk '{print strftime("[%Y-%m-%d %T]",systime()), $0; fflush();}'
+}
+
+output ()
+{
+    format | tee -a $LOGFILE
+}
+
+log ()
+{
+    echo $@ 2>&1 | output
+}
 
 function show_help() {
     echo "Generate a dump file for each database in a database cluster."
-    echo 
+    echo
     echo Usage:
     echo    "${PROGRAM_NAME} --dump-destination=PATH [OPTIONS] [PGDUMP_OPTIONS]"
     echo "Usage:"
@@ -38,7 +55,7 @@ function show_help() {
 }
 
 function remove_olds () {
-  echo "Removing old backup files"
+  log "Removing old backup files"
   if [ ${_remove_olds} != 'F' ]; then
     rm -rf ${_backup_destination}/*dmpc
   fi
@@ -48,7 +65,7 @@ function create_dumps() {
     # set de file_mask
     file_mask=$(date +%d-%m-%Y_%Hh%Mmin)
 
-    echo 'Generating dynamic database list...'
+    log 'Generating dynamic database list...'
 
     pgsql_connection_args=''
 
@@ -61,26 +78,26 @@ function create_dumps() {
     if [ "${_pgsql_port}X" != "X" ]; then
         pgsql_connection_args="${pgsql_connection_args} -p ${_pgsql_port}"
     fi
-
+#
     exclude_databases="'template0', 'template1'"
     db_query="SELECT datname FROM pg_database WHERE datname NOT IN (${exclude_databases});"
-    database_list=$(psql ${pgsql_connection_args} -c "${db_query}" -t)
+    database_list=$(${PGBIN}/psql ${pgsql_connection_args} -c "${db_query}" -t)
 
-    echo 'Generating dump files...'
+    log 'Generating dump files...'
 
     for db_name in ${database_list[@]}; do
         dump_file="${_backup_destination}/${db_name}-${file_mask}.dmpc"
-        echo " >> Processing ${db_name}" 
-		pg_dump ${pgsql_connection_args} ${_custom_pgdump_options} -f ${dump_file} ${db_name}
+        log "Processing ${db_name}"
+        ${PGBIN}/pg_dump ${pgsql_connection_args} ${_custom_pgdump_options} -f ${dump_file} ${db_name}
     done
 
-    echo "Done."
+    log "Done."
 }
 
 ## check parameter inputed in cmd
 # returns:
 # 0: not found
-# 1: found 
+# 1: found
 function check_pgdump_opts() {
     echo $(echo "${pgdump_options_list}" | grep -- "${1}" | wc -l)
 }
@@ -103,9 +120,9 @@ if [ $# -ne 0 ]; then
                     --username) _pgsql_user="${value}" ;;
                     --before-script) _before_script="${value}" ;;
                     --after-script) _after_script="${value}" ;;
-                    *) 
+                    *)
                         if [ $(check_pgdump_opts "${option}") -eq 0  ]; then
-                            show_help && exit 1  
+                            show_help && exit 1
                         else
                             _custom_pgdump_options="${option}=${value} ${_custom_pgdump_options}"
                         fi
@@ -114,7 +131,7 @@ if [ $# -ne 0 ]; then
             -h) _pgsql_host="${2}" ; shift ;;
             -p) _pgsql_port="${2}" ; shift ;;
             -U) _pgsql_user="${2}" ; shift ;;
-            *) 
+            *)
                 if [ $(check_pgdump_opts "${1}") -eq 0  ]; then
                     show_help && exit 1
                 else
@@ -128,12 +145,12 @@ if [ $# -ne 0 ]; then
 
 
     if [ "${_before_script}X" != "X" ]; then
-        echo "Running external script: ${_before_script}"
+        log "Running external script: ${_before_script}"
         run_script "${_before_script}"
         out=$?
         if [ ${out} -ne 0 ]; then
-            echo  "Error running BEFORE script"
-            exit ${out} 
+            log  "Error running BEFORE script"
+            exit ${out}
         fi
     fi
 
@@ -149,12 +166,12 @@ if [ $# -ne 0 ]; then
 
 
     if [ "${_after_script}X" != "X" ]; then
-        echo "Running external script: ${_after_script}"
+        log "Running external script: ${_after_script}"
         run_script "${_after_script}"
         out=$?
         if [ ${out} -ne 0 ]; then
-            echo  "Error running AFTER script"
-            exit ${out} 
+            log  "Error running AFTER script"
+            exit ${out}
         fi
     fi
 else
